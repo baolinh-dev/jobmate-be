@@ -1,0 +1,16 @@
+const express = require('express');
+const router = express.Router();
+const { createJob, getJobs, getJobById, updateJob, deleteJob } = require('../controllers/jobController');
+const requireLogin = require('../middlewares/auth');
+
+// Tất cả route đều yêu cầu login
+router.use(requireLogin);
+
+// CRUD job
+router.post('/', createJob);
+router.get('/', getJobs);
+router.get('/:id', getJobById);
+router.put('/:id', updateJob);
+router.delete('/:id', deleteJob);
+
+module.exports = router;

@@ -3,12 +3,18 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 
 const app = express();
+
+// Connect database
 connectDB();
+
+// Middleware
 app.use(express.json());
 app.use(cors());
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/jobs', require('./routes/jobRoutes')); // thêm route jobs
 
+// Start server
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
