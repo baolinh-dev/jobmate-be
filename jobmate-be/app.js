@@ -17,6 +17,6 @@ app.use(cors());
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/jobs', require('./routes/jobRoutes')); // thêm route jobs
-
+app.use('/api/categories', require('./routes/categoryRoutes'));
 // Start server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
