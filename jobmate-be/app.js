@@ -1,3 +1,6 @@
+require('dotenv').config();  
+const PORT = process.env.PORT;
+
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
@@ -16,5 +19,4 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/jobs', require('./routes/jobRoutes')); // thêm route jobs
 
 // Start server
-const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = 'your_secret_key'; // nên để trong process.env.JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET; // nên để trong process.env.JWT_SECRET
 
 const requireLogin = (req, res, next) => {
   const token = req.header('x-auth-token');
