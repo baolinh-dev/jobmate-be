@@ -35,6 +35,18 @@ const loginUser = async (req, res) => {
   } catch(err) {
     res.status(500).json({ message: err.message });
   }
+}; 
+
+// Logout
+const logoutUser = (req, res) => {
+  res
+    .cookie('token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 0, // xóa cookie
+    })
+    .json({ message: 'Logged out successfully' });
 };
 
 // REGISTER new user
@@ -66,5 +78,4 @@ const getMe = async (req, res) => {
 };
 
 
-module.exports = { registerUser, loginUser, getMe };
-
+module.exports = { registerUser, loginUser, getMe, logoutUser };
