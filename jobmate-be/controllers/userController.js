@@ -8,33 +8,35 @@ const JWT_SECRET = process.env.JWT_SECRET; // nên lưu trong process.env.JWT_SE
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // tìm user theo email
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Invalid email or password' });
+    if(!user) return res.status(400).json({ message: "Invalid credentials" });
 
-    // so sánh password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid email or password' });
+    if(!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-    // tạo token
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '1d' } // token hết hạn 1 ngày
-    );
+    const payload = { id: user._id, role: user.role };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
 
-    // trả token trong header và body
-    res.header('x-auth-token', token).json({
-      message: 'Login successful',
-      token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
-    });
-
-  } catch (err) {
+    // Send token in HttpOnly cookie and return it in the response body as well
+    // (returning token allows SPA clients on different origins to store the token
+    // and send it via header when cookies are unavailable or blocked)
+    res
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // chỉ HTTPS trong prod
+        sameSite: "strict", // hoặc 'lax'
+        maxAge: 3600000 // 1 giờ
+      })
+      .json({
+        message: "Login successful",
+        token,
+        user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      });
+  } catch(err) {
     res.status(500).json({ message: err.message });
   }
-}; 
+};
+
 // REGISTER new user
 const registerUser = async (req, res) => {
   try {
