@@ -130,58 +130,99 @@ const getJobs = async (req, res) => {
   }
 };
 
-
 const searchJobs = async (req, res) => {
   try {
-    const { keyword, category, skills, page = 1, limit = 10 } = req.query;
+    let {
+      keyword,
+      category,
+      skills,
+      minBudget,
+      maxBudget,
+      status,
+      clientId,
+      sort = "newest",
+      page = 1,
+      limit = 10
+    } = req.query;
 
     let query = {};
 
-    // Tìm theo từ khóa
+    // Keyword search
     if (keyword) {
+      const regex = { $regex: keyword, $options: "i" };
       query.$or = [
-        { title: { $regex: keyword, $options: 'i' } },
-        { description: { $regex: keyword, $options: 'i' } }
+        { title: regex },
+        { description: regex },
+        { skillsRequired: regex }
       ];
     }
 
-    // Lọc theo categoryId
-    if (category) {
-      if (!mongoose.Types.ObjectId.isValid(category)) {
-        // Category không hợp lệ → trả về mảng rỗng
-        return res.json({ total: 0, page: 1, totalPages: 0, jobs: [] });
-      }
+    // Category
+    if (category && mongoose.Types.ObjectId.isValid(category)) {
       query.category = category;
     }
 
-    // Lọc theo skills (array string)
-    if (skills) {
-      const skillsArray = skills.split(',').map(s => s.trim());
-      query.skillsRequired = { $all: skillsArray };
+    // Client
+    if (clientId && mongoose.Types.ObjectId.isValid(clientId)) {
+      query.client = clientId;
     }
 
+    // Skills filter
+    if (skills) {
+      const skillsArr = skills.split(",").map(s => s.trim());
+      query.skillsRequired = { $all: skillsArr };
+    }
+
+    // Budget range FIXED
+    if (minBudget || maxBudget) {
+      query.budget = { $ne: null }; // loại null
+      
+      if (minBudget) query.budget.$gte = Number(minBudget);
+      if (maxBudget) query.budget.$lte = Number(maxBudget);
+    }
+
+    // Status
+    if (status) query.status = status;
+
+    // Pagination
+    page = Number(page);
+    limit = Number(limit);
     const skip = (page - 1) * limit;
 
-    const jobs = await Job.find(query)
-      .populate('client', 'name email')
-      .populate('category', 'name')
-      .skip(skip)
-      .limit(Number(limit))
-      .sort({ createdAt: -1 });
+    // Sorting
+    const sortOptions = {
+      newest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+      highestBudget: { budget: -1 },
+      lowestBudget: { budget: 1 },
+    };
 
-    const total = await Job.countDocuments(query);
+    const sortQuery = sortOptions[sort] || sortOptions.newest;
+
+    const [jobs, total] = await Promise.all([
+      Job.find(query)
+        .populate("client", "name email")
+        .populate("category", "name")
+        .skip(skip)
+        .limit(limit)
+        .sort(sortQuery),
+      Job.countDocuments(query)
+    ]);
 
     res.json({
       total,
-      page: Number(page),
+      page,
       totalPages: Math.ceil(total / limit),
+      sort,
       jobs
     });
 
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    console.error("SearchJobs Error:", error);
+    res.status(500).json({ message: error.message });
   }
 };
+
 
 // Lấy 1 job theo id
 const getJobById = async (req, res) => {
@@ -193,10 +234,5 @@ const getJobById = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
-
-
-
-
-
 
 module.exports = { createJob, getJobs, getJobById, updateJob, deleteJob, searchJobs };
