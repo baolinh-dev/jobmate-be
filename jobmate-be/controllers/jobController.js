@@ -45,9 +45,9 @@ const createJob = async (req, res) => {
 const updateJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
-    if(!job) return res.status(404).json({ message: 'Job not found' });
+    if (!job) return res.status(404).json({ message: 'Job not found' });
 
-    if(job.client.toString() !== req.user.id)
+    if (job.client.toString() !== req.user.id)
       return res.status(403).json({ message: 'You can only update your own jobs' });
 
     const { title, description, skillsRequired, budget, status, category } = req.body;
@@ -78,7 +78,7 @@ const updateJob = async (req, res) => {
 
     res.json(populatedJob);
 
-  } catch(err) {
+  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
@@ -86,22 +86,21 @@ const updateJob = async (req, res) => {
 
 // Xóa job (chỉ client tạo job mới xóa được)
 const deleteJob = async (req, res) => {
-    try {
-        const job = await Job.findById(req.params.id);
-        if (!job) return res.status(404).json({ message: 'Job not found' });
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
 
-        if (job.client.toString() !== req.user.id)
-            return res.status(403).json({ message: 'You can only delete your own jobs' });
+    if (job.client.toString() !== req.user.id)
+      return res.status(403).json({ message: 'You can only delete your own jobs' });
 
-        // Xóa trực tiếp bằng findByIdAndDelete
-        await Job.findByIdAndDelete(req.params.id);
+    // Xóa trực tiếp bằng findByIdAndDelete
+    await Job.findByIdAndDelete(req.params.id);
 
-        res.json({ message: 'Job deleted successfully' });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+    res.json({ message: 'Job deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
-
 
 // Lấy tất cả job + pagination
 const getJobs = async (req, res) => {
@@ -176,7 +175,7 @@ const searchJobs = async (req, res) => {
     // Budget range FIXED
     if (minBudget || maxBudget) {
       query.budget = { $ne: null }; // loại null
-      
+
       if (minBudget) query.budget.$gte = Number(minBudget);
       if (maxBudget) query.budget.$lte = Number(maxBudget);
     }
@@ -225,14 +224,19 @@ const searchJobs = async (req, res) => {
 
 
 // Lấy 1 job theo id
+// Thay đổi file jobController.js của bạn như sau:
+
 const getJobById = async (req, res) => {
-    try {
-        const job = await Job.findById(req.params.id).populate('client', 'name email');
-        if (!job) return res.status(404).json({ message: 'Job not found' });
-        res.json(job);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+  try {
+    const job = await Job.findById(req.params.id)
+      .populate('client', 'name email')
+      .populate('category', 'name'); // 💡 THÊM DÒNG NÀY ĐỂ LẤY TÊN DANH MỤC!
+
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    res.json(job);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}; 
 
 module.exports = { createJob, getJobs, getJobById, updateJob, deleteJob, searchJobs };

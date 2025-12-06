@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const requireLogin = require('../middlewares/auth');
-const { applyJob, getApplicationsByJob, updateApplicationStatus } = require('../controllers/applicationControler');
+const { applyJob, getApplicationsByJob, updateApplicationStatus, getClientAllApplications } = require('../controllers/applicationControler');
 
 // Freelancer apply job
 router.post('/apply', requireLogin, applyJob);
@@ -11,5 +11,8 @@ router.get('/job/:jobId', requireLogin, getApplicationsByJob);
 
 // Client update application status
 router.put('/:applicationId', requireLogin, updateApplicationStatus);
+
+// Ví dụ về route (router.js)
+router.get('/client/all', requireLogin, getClientAllApplications);
 
 module.exports = router;

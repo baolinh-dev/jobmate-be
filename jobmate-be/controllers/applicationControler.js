@@ -77,4 +77,35 @@ const updateApplicationStatus = async (req, res) => {
   }
 };
 
-module.exports = { applyJob, getApplicationsByJob, updateApplicationStatus };
+const getClientAllApplications = async (req, res) => {
+  try {
+    // 1. Kiểm tra vai trò: Đảm bảo chỉ Client mới có thể xem
+    if (req.user.role !== 'client') {
+      return res.status(403).json({ message: 'Only clients can view all received applications' });
+    }
+
+    // 2. Tìm tất cả Job ID thuộc về Client này
+    const clientJobs = await Job.find({ client: req.user.id }).select('_id');
+    const jobIds = clientJobs.map(job => job._id);
+
+    if (jobIds.length === 0) {
+      return res.json({ applications: [], message: 'You have not posted any jobs yet.' });
+    }
+
+    // 3. Tìm TẤT CẢ applications liên quan đến các Job ID đó
+    const applications = await Application.find({ job: { $in: jobIds } })
+      // Populate thông tin Freelancer và thông tin Công việc
+      .populate('freelancer', 'name email')
+      .populate('job', 'title budget status') // Chỉ lấy những trường cần thiết của Job
+      .sort({ createdAt: -1 }); // Sắp xếp theo ngày tạo mới nhất
+
+    // 4. Phản hồi thành công
+    res.json({ applications });
+
+  } catch (err) {
+    console.error('Error fetching client applications:', err);
+    res.status(500).json({ message: 'Internal Server Error: ' + err.message });
+  }
+};
+
+module.exports = { applyJob, getApplicationsByJob, updateApplicationStatus, getClientAllApplications };
