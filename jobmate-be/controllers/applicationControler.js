@@ -75,6 +75,28 @@ const updateApplicationStatus = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+}; 
+
+const getFreelancerAllApplications = async (req, res) => {
+  try {
+    const freelancerId = req.user.id; // lấy từ JWT
+
+    const apps = await Application.find({ freelancer: freelancerId })
+      .populate({
+        path: "job",
+        populate: { path: "client", select: "name email" },
+        select: "title budget category createdAt"
+      })
+      .sort({ createdAt: -1 });
+
+    return res.json({
+      total: apps.length,
+      applications: apps
+    });
+  } catch (error) {
+    console.error("Lỗi getFreelancerAllApplications:", error);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
 };
 
 const getClientAllApplications = async (req, res) => {
@@ -108,4 +130,4 @@ const getClientAllApplications = async (req, res) => {
   }
 };
 
-module.exports = { applyJob, getApplicationsByJob, updateApplicationStatus, getClientAllApplications };
+module.exports = { applyJob, getApplicationsByJob, updateApplicationStatus, getClientAllApplications, getFreelancerAllApplications };
