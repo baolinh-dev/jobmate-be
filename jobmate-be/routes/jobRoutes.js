@@ -12,6 +12,7 @@ router.get('/', getJobs);
 router.get('/search', searchJobs);
 router.get('/:id', getJobById);
 router.put('/:id', updateJob);
+router.patch('/:id', updateJob); // Support PATCH method
 router.delete('/:id', deleteJob);
 
 module.exports = router;

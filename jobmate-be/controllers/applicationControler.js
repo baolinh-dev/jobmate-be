@@ -1,133 +1,175 @@
-const Application = require('../models/Application');
-const Job = require('../models/Job');
+const Application = require("../models/Application");
+const Job = require("../models/Job");
+const User = require("../models/User");
 
 // Freelancer apply job
 const applyJob = async (req, res) => {
-  try {
-    if (req.user.role !== 'freelancer') {
-      return res.status(403).json({ message: 'Only freelancers can apply' });
-    }
+	try {
+		if (req.user.role !== "freelancer") {
+			return res.status(403).json({ message: "Only freelancers can apply" });
+		}
 
-    const { jobId, coverLetter } = req.body;
+		const { jobId, coverLetter, walletAddress } = req.body;
 
-    const job = await Job.findById(jobId);
-    if (!job) return res.status(404).json({ message: 'Job not found' });
+		const job = await Job.findById(jobId);
+		if (!job) return res.status(404).json({ message: "Job not found" });
 
-    // Check if already applied
-    const exist = await Application.findOne({ job: jobId, freelancer: req.user.id });
-    if (exist) return res.status(400).json({ message: 'You already applied to this job' });
+		// Check if already applied
+		const exist = await Application.findOne({
+			job: jobId,
+			freelancer: req.user.id,
+		});
+		if (exist)
+			return res
+				.status(400)
+				.json({ message: "You already applied to this job" });
 
-    const application = new Application({
-      job: jobId,
-      freelancer: req.user.id,
-      coverLetter
-    });
+		// Save wallet address to user profile if provided and not already saved
+		if (walletAddress) {
+			const user = await User.findById(req.user.id);
+			if (user && !user.walletAddress) {
+				user.walletAddress = walletAddress.toLowerCase();
+				await user.save();
+			}
+		}
 
-    await application.save();
+		const application = new Application({
+			job: jobId,
+			freelancer: req.user.id,
+			coverLetter,
+		});
 
-    res.status(201).json(application);
+		await application.save();
 
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+		res.status(201).json(application);
+	} catch (err) {
+		res.status(500).json({ message: err.message });
+	}
 };
 
 // Client xem tất cả ứng tuyển của 1 job
 const getApplicationsByJob = async (req, res) => {
-  try {
-    const job = await Job.findById(req.params.jobId);
-    if (!job) return res.status(404).json({ message: 'Job not found' });
+	try {
+		const job = await Job.findById(req.params.jobId);
+		if (!job) return res.status(404).json({ message: "Job not found" });
 
-    if (job.client.toString() !== req.user.id)
-      return res.status(403).json({ message: 'You can only view applications for your own jobs' });
+		if (job.client.toString() !== req.user.id)
+			return res
+				.status(403)
+				.json({ message: "You can only view applications for your own jobs" });
 
-    const applications = await Application.find({ job: job._id })
-      .populate('freelancer', 'name email');
+		const applications = await Application.find({ job: job._id }).populate(
+			"freelancer",
+			"name email walletAddress",
+		);
 
-    res.json(applications);
-
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+		res.json(applications);
+	} catch (err) {
+		res.status(500).json({ message: err.message });
+	}
 };
 
 // Client chấp nhận/reject application
 const updateApplicationStatus = async (req, res) => {
-  try {
-    const { status } = req.body; // accepted/rejected
-    const { applicationId } = req.params;
+	try {
+		const { status } = req.body; // accepted/rejected
+		const { applicationId } = req.params;
 
-    const application = await Application.findById(applicationId).populate('job');
-    if (!application) return res.status(404).json({ message: 'Application not found' });
+		const application = await Application.findById(applicationId)
+			.populate("job")
+			.populate("freelancer", "name email walletAddress");
+		if (!application)
+			return res.status(404).json({ message: "Application not found" });
 
-    if (application.job.client.toString() !== req.user.id)
-      return res.status(403).json({ message: 'You can only update applications for your own jobs' });
+		if (application.job.client.toString() !== req.user.id)
+			return res.status(403).json({
+				message: "You can only update applications for your own jobs",
+			});
 
-    if (!['accepted', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
-    }
+		if (!["accepted", "rejected"].includes(status)) {
+			return res.status(400).json({ message: "Invalid status" });
+		}
 
-    application.status = status;
-    await application.save();
+		application.status = status;
+		await application.save();
 
-    res.json(application);
+		// If accepted, update job with assignedFreelancer
+		if (status === "accepted") {
+			const job = await Job.findById(application.job._id);
+			if (job) {
+				job.assignedFreelancer = application.freelancer._id;
+				job.status = "in_progress"; // Optionally update job status
+				await job.save();
+			}
+		}
 
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}; 
+		res.json(application);
+	} catch (err) {
+		res.status(500).json({ message: err.message });
+	}
+};
 
 const getFreelancerAllApplications = async (req, res) => {
-  try {
-    const freelancerId = req.user.id; // lấy từ JWT
+	try {
+		const freelancerId = req.user.id; // lấy từ JWT
 
-    const apps = await Application.find({ freelancer: freelancerId })
-      .populate({
-        path: "job",
-        populate: { path: "client", select: "name email" },
-        select: "title budget category createdAt"
-      })
-      .sort({ createdAt: -1 });
+		const apps = await Application.find({ freelancer: freelancerId })
+			.populate({
+				path: "job",
+				populate: { path: "client", select: "name email" },
+				select: "title budget category createdAt",
+			})
+			.sort({ createdAt: -1 });
 
-    return res.json({
-      total: apps.length,
-      applications: apps
-    });
-  } catch (error) {
-    console.error("Lỗi getFreelancerAllApplications:", error);
-    return res.status(500).json({ message: "Lỗi server" });
-  }
+		return res.json({
+			total: apps.length,
+			applications: apps,
+		});
+	} catch (error) {
+		console.error("Lỗi getFreelancerAllApplications:", error);
+		return res.status(500).json({ message: "Lỗi server" });
+	}
 };
 
 const getClientAllApplications = async (req, res) => {
-  try {
-    // 1. Kiểm tra vai trò: Đảm bảo chỉ Client mới có thể xem
-    if (req.user.role !== 'client') {
-      return res.status(403).json({ message: 'Only clients can view all received applications' });
-    }
+	try {
+		// 1. Kiểm tra vai trò: Đảm bảo chỉ Client mới có thể xem
+		if (req.user.role !== "client") {
+			return res
+				.status(403)
+				.json({ message: "Only clients can view all received applications" });
+		}
 
-    // 2. Tìm tất cả Job ID thuộc về Client này
-    const clientJobs = await Job.find({ client: req.user.id }).select('_id');
-    const jobIds = clientJobs.map(job => job._id);
+		// 2. Tìm tất cả Job ID thuộc về Client này
+		const clientJobs = await Job.find({ client: req.user.id }).select("_id");
+		const jobIds = clientJobs.map((job) => job._id);
 
-    if (jobIds.length === 0) {
-      return res.json({ applications: [], message: 'You have not posted any jobs yet.' });
-    }
+		if (jobIds.length === 0) {
+			return res.json({
+				applications: [],
+				message: "You have not posted any jobs yet.",
+			});
+		}
 
-    // 3. Tìm TẤT CẢ applications liên quan đến các Job ID đó
-    const applications = await Application.find({ job: { $in: jobIds } })
-      // Populate thông tin Freelancer và thông tin Công việc
-      .populate('freelancer', 'name email')
-      .populate('job', 'title budget status') // Chỉ lấy những trường cần thiết của Job
-      .sort({ createdAt: -1 }); // Sắp xếp theo ngày tạo mới nhất
+		// 3. Tìm TẤT CẢ applications liên quan đến các Job ID đó
+		const applications = await Application.find({ job: { $in: jobIds } })
+			// Populate thông tin Freelancer và thông tin Công việc
+			.populate("freelancer", "name email walletAddress")
+			.populate("job", "title budget status") // Chỉ lấy những trường cần thiết của Job
+			.sort({ createdAt: -1 }); // Sắp xếp theo ngày tạo mới nhất
 
-    // 4. Phản hồi thành công
-    res.json({ applications });
-
-  } catch (err) {
-    console.error('Error fetching client applications:', err);
-    res.status(500).json({ message: 'Internal Server Error: ' + err.message });
-  }
+		// 4. Phản hồi thành công
+		res.json({ applications });
+	} catch (err) {
+		console.error("Error fetching client applications:", err);
+		res.status(500).json({ message: "Internal Server Error: " + err.message });
+	}
 };
 
-module.exports = { applyJob, getApplicationsByJob, updateApplicationStatus, getClientAllApplications, getFreelancerAllApplications };
+module.exports = {
+	applyJob,
+	getApplicationsByJob,
+	updateApplicationStatus,
+	getClientAllApplications,
+	getFreelancerAllApplications,
+};

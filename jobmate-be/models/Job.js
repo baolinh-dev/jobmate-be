@@ -7,7 +7,12 @@ const jobSchema = new mongoose.Schema({
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   skillsRequired: [{ type: String }], 
   budget: Number,
-  status: { type: String, enum: ['open', 'in_progress', 'completed'], default: 'open' }
+  status: { type: String, enum: ['open', 'in_progress', 'completed'], default: 'open' },
+  // Blockchain fields
+  escrowAddress: { type: String, default: null },
+  blockchainStatus: { type: String, default: null },
+  fundedAmount: { type: Number, default: null },
+  assignedFreelancer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Job', jobSchema);

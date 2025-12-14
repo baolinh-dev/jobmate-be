@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getMe, logoutUser } = require('../controllers/userController');
+const { registerUser, loginUser, getMe, logoutUser, updateWalletAddress } = require('../controllers/userController');
 const requireLogin = require('../middlewares/auth');
 
 // Register
@@ -11,6 +11,9 @@ router.post('/login', loginUser);
 
 // Lấy thông tin current user (chỉ user đã login mới xem được)
 router.get('/me', requireLogin, getMe);
+
+// Update wallet address
+router.patch('/wallet', requireLogin, updateWalletAddress);
 
 // Logout
 router.post('/logout', logoutUser);

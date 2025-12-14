@@ -50,12 +50,44 @@ const updateJob = async (req, res) => {
     if (job.client.toString() !== req.user.id)
       return res.status(403).json({ message: 'You can only update your own jobs' });
 
-    const { title, description, skillsRequired, budget, status, category } = req.body;
+    const { 
+      title, 
+      description, 
+      skillsRequired, 
+      budget, 
+      status, 
+      category,
+      escrowAddress,
+      blockchainStatus,
+      fundedAmount,
+      assignedFreelancer
+    } = req.body;
 
     if (title) job.title = title;
     if (description) job.description = description;
     if (budget !== undefined) job.budget = budget;
     if (status) job.status = status;
+
+    // Blockchain fields
+    if (escrowAddress) job.escrowAddress = escrowAddress;
+    if (blockchainStatus) job.blockchainStatus = blockchainStatus;
+    if (fundedAmount !== undefined) job.fundedAmount = fundedAmount;
+    if (assignedFreelancer) {
+      if (mongoose.Types.ObjectId.isValid(assignedFreelancer)) {
+        job.assignedFreelancer = assignedFreelancer;
+      }
+    }
+    
+    // If freelancerWalletAddress provided, find user by wallet and assign
+    if (req.body.freelancerWalletAddress) {
+      const User = require('../models/User');
+      const freelancer = await User.findOne({ 
+        walletAddress: req.body.freelancerWalletAddress.toLowerCase() 
+      });
+      if (freelancer) {
+        job.assignedFreelancer = freelancer._id;
+      }
+    }
 
     if (category) {
       if (!mongoose.Types.ObjectId.isValid(category))
@@ -74,7 +106,8 @@ const updateJob = async (req, res) => {
     await job.save();
     const populatedJob = await Job.findById(job._id)
       .populate('category', 'name')
-      .populate('client', 'name email');
+      .populate('client', 'name email walletAddress')
+      .populate('assignedFreelancer', 'name email walletAddress');
 
     res.json(populatedJob);
 
@@ -229,8 +262,9 @@ const searchJobs = async (req, res) => {
 const getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id)
-      .populate('client', 'name email')
-      .populate('category', 'name'); // 💡 THÊM DÒNG NÀY ĐỂ LẤY TÊN DANH MỤC!
+      .populate('client', 'name email walletAddress')
+      .populate('category', 'name')
+      .populate('assignedFreelancer', 'name email walletAddress');
 
     if (!job) return res.status(404).json({ message: 'Job not found' });
     res.json(job);

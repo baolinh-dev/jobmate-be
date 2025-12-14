@@ -77,5 +77,35 @@ const getMe = async (req, res) => {
   }
 };
 
+// Update wallet address
+const updateWalletAddress = async (req, res) => {
+  try {
+    const { walletAddress } = req.body;
+    
+    if (!walletAddress) {
+      return res.status(400).json({ message: 'Wallet address is required' });
+    }
 
-module.exports = { registerUser, loginUser, getMe, logoutUser };
+    // Validate wallet address format
+    if (!walletAddress.startsWith('0x') || walletAddress.length !== 42) {
+      return res.status(400).json({ message: 'Invalid wallet address format' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.walletAddress = walletAddress;
+    await user.save();
+
+    res.json({ 
+      message: 'Wallet address updated successfully',
+      walletAddress: user.walletAddress 
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { registerUser, loginUser, getMe, logoutUser, updateWalletAddress };
